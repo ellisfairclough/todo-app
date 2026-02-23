@@ -15,6 +15,20 @@
     html, body { height: 100%; background: #F7F6F3; font-family: 'DM Sans', sans-serif; }
     ::-webkit-scrollbar { width: 0; }
 
+    /* Lock screen */
+    #lock-screen { position: fixed; inset: 0; background: #F7F6F3; display: flex; align-items: center; justify-content: center; z-index: 999; }
+    .lock-card { width: 100%; max-width: 320px; padding: 40px 32px; text-align: center; }
+    .lock-icon { font-size: 32px; margin-bottom: 20px; }
+    .lock-title { font-size: 22px; font-weight: 600; color: #1a1a1a; margin-bottom: 6px; }
+    .lock-sub { font-size: 13px; color: #aaa; margin-bottom: 28px; }
+    .lock-input { width: 100%; border: 1.5px solid #e5e5e5; border-radius: 10px; padding: 12px 16px; font-size: 16px; font-family: 'DM Sans', sans-serif; background: #fff; color: #1a1a1a; text-align: center; letter-spacing: 2px; transition: border-color 0.15s; }
+    .lock-input:focus { outline: none; border-color: #1a1a1a; }
+    .lock-input.error { border-color: #E85D4A; animation: shake 0.3s ease; }
+    @keyframes shake { 0%,100% { transform: translateX(0); } 25% { transform: translateX(-6px); } 75% { transform: translateX(6px); } }
+    .lock-btn { width: 100%; margin-top: 12px; background: #1a1a1a; color: #fff; border: none; border-radius: 10px; padding: 12px; font-size: 14px; font-weight: 500; font-family: 'DM Sans', sans-serif; cursor: pointer; transition: opacity 0.15s; }
+    .lock-btn:active { opacity: 0.8; }
+    .lock-error { font-size: 12px; color: #E85D4A; margin-top: 10px; min-height: 16px; }
+
     #app { max-width: 480px; margin: 0 auto; min-height: 100vh; padding-bottom: 60px; }
 
     /* Header */
@@ -87,7 +101,18 @@
   </style>
 </head>
 <body>
-<div id="app">
+<div id="lock-screen">
+  <div class="lock-card">
+    <div class="lock-icon">🔒</div>
+    <h1 class="lock-title">Todos</h1>
+    <p class="lock-sub">Enter your password to continue</p>
+    <input class="lock-input" id="lock-input" type="password" placeholder="••••••••" autocomplete="current-password" />
+    <button class="lock-btn" id="lock-btn">Unlock</button>
+    <p class="lock-error" id="lock-error"></p>
+  </div>
+</div>
+
+<div id="app" style="display:none;">
   <header class="header">
     <div>
       <p class="date" id="date-display"></p>
@@ -110,6 +135,52 @@
 
 <script>
 (function () {
+  // ─── PASSWORD CONFIG ───────────────────────────────────────────
+  // Change this to your chosen password:
+  const PASSWORD = "changeme";
+  // How many days to stay logged in (0 = until browser closes):
+  const SESSION_DAYS = 30;
+  // ────────────────────────────────────────────────────────────────
+
+  function checkAuth() {
+    const expiry = localStorage.getItem("todo-auth-expiry");
+    if (expiry && Date.now() < parseInt(expiry)) {
+      showApp();
+    }
+  }
+
+  function showApp() {
+    document.getElementById("lock-screen").style.display = "none";
+    document.getElementById("app").style.display = "block";
+  }
+
+  function tryUnlock() {
+    const input = document.getElementById("lock-input");
+    const error = document.getElementById("lock-error");
+    if (input.value === PASSWORD) {
+      if (SESSION_DAYS > 0) {
+        localStorage.setItem("todo-auth-expiry", Date.now() + SESSION_DAYS * 86400000);
+      }
+      showApp();
+    } else {
+      input.classList.add("error");
+      error.textContent = "Incorrect password";
+      input.value = "";
+      setTimeout(() => { input.classList.remove("error"); }, 400);
+    }
+  }
+
+  // Lock screen events
+  document.getElementById("lock-btn").addEventListener("click", tryUnlock);
+  document.getElementById("lock-input").addEventListener("keydown", e => {
+    if (e.key === "Enter") tryUnlock();
+    document.getElementById("lock-error").textContent = "";
+  });
+  document.getElementById("lock-input").focus();
+
+  // Check if already authenticated
+  checkAuth();
+
   const PRIORITIES = {
     high:   { label: 'High',   color: '#E85D4A' },
     medium: { label: 'Medium', color: '#F0A500' },
